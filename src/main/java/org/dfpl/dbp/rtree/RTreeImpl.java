@@ -643,31 +643,59 @@ public class RTreeImpl implements RTree {
     @Override
     public Iterator<Point> nearest(Point source, int k) {
         currentMode = Mode.KNN;
-
-        // 모든 점 수집 후 거리순 정렬
-        List<Point> all = new ArrayList<>();
-        collectPoints(root, all);
-        all.sort(Comparator.comparingDouble(source::distance));
-
-        // 기준점 강조
         highlightPoints.clear();
         DrawPanel.knnSource = source;
-        refreshGUI();
 
-        // k개를 하나씩 빨간 점으로 추가하여 “탐색의 진행”을 보여줌
-        for (int i = 0; i < k && i < all.size(); i++) {
-            highlightPoints.add(all.get(i));
-            refreshGUI();
-            waitForKeyPress();
+        PriorityQueue<Object[]> pq = new PriorityQueue<>(Comparator.comparingDouble(a -> (double)a[0]));
+        List<Point> result = new ArrayList<>();
+
+        // 루트부터 시작, MBR 최소거리
+        pq.add(new Object[]{minDist(source, root.mbr), root});
+
+        while (!pq.isEmpty() && result.size() < k) {
+            Object[] item = pq.poll();
+            double dist = (double) item[0];
+            Object obj = item[1];
+
+            if (obj instanceof Node n) {
+                if (n.isLeaf) {
+                    for (Point p : n.points) {
+                        double d = source.distance(p);
+                        pq.add(new Object[]{d, p});
+                    }
+                } else {
+                    for (Node c : n.children) {
+                        double d = minDist(source, c.mbr);
+                        pq.add(new Object[]{d, c});
+                    }
+                }
+            } else if (obj instanceof Point p) {
+                result.add(p);
+                highlightPoints.add(p);
+                refreshGUI();
+                waitForKeyPress();  // 시각화용
+            }
         }
 
-        // 끝난 후 강조 해제
+        // 시각화 초기화
         highlightPoints.clear();
         DrawPanel.knnSource = null;
         currentMode = Mode.NONE;
 
-        // 결과 반환
-        return all.subList(0, Math.min(k, all.size())).iterator();
+        return result.iterator();
+    }
+
+    // 기준점 source와 MBR r 사이 최소 거리 계산
+    private double minDist(Point source, Rectangle r) {
+        double dx = 0, dy = 0;
+
+        if (source.getX() < r.getLeftTop().getX()) dx = r.getLeftTop().getX() - source.getX();
+        else if (source.getX() > r.getRightBottom().getX()) dx = source.getX() - r.getRightBottom().getX();
+
+        if (source.getY() < r.getLeftTop().getY()) dy = r.getLeftTop().getY() - source.getY();
+        else if (source.getY() > r.getRightBottom().getY()) dy = source.getY() - r.getRightBottom().getY();
+
+        return Math.sqrt(dx*dx + dy*dy);
     }
 
     /*-----------------DELETE----------------*/
