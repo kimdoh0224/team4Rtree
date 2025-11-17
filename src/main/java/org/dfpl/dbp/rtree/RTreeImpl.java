@@ -719,6 +719,8 @@ public class RTreeImpl implements RTree {
         }
         if (root.isLeaf && root.points.isEmpty()) root = null;
 
+        instanceRoot = root;
+
         refreshGUI();
         currentMode = Mode.NONE;
     }
