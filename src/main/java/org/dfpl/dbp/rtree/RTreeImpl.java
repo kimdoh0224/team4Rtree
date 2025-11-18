@@ -670,18 +670,24 @@ public class RTreeImpl implements RTree {
         searchPrunedRect = null;
     }
 
-    /*-----------------KNN----------------*/
     @Override
     public Iterator<Point> nearest(Point source, int k) {
         currentMode = Mode.KNN;
         highlightPoints.clear();
+        highlightRect = null;  // 현재 강조할 사각형
         DrawPanel.knnSource = source;
 
-        PriorityQueue<Object[]> pq = new PriorityQueue<>(Comparator.comparingDouble(a -> (double)a[0]));
+        PriorityQueue<Object[]> pq =
+                new PriorityQueue<>(Comparator.comparingDouble(a -> (double)a[0]));
         List<Point> result = new ArrayList<>();
 
-        // 루트부터 시작, MBR 최소거리
+        // 루트부터 시작
         pq.add(new Object[]{minDist(source, root.mbr), root});
+
+        // 시각화: 시작 루트 강조
+        highlightRect = root.mbr;
+        refreshGUI();
+        waitForKeyPress();
 
         while (!pq.isEmpty() && result.size() < k) {
             Object[] item = pq.poll();
@@ -689,32 +695,52 @@ public class RTreeImpl implements RTree {
             Object obj = item[1];
 
             if (obj instanceof Node n) {
+                // 현재 노드 MBR 강조
+                highlightRect = n.mbr;
+                refreshGUI();
+                waitForKeyPress();
+
                 if (n.isLeaf) {
+                    // 리프 노드: 후보 점 강조
                     for (Point p : n.points) {
+                        highlightPoints.clear();
+                        highlightPoints.add(p);      // 후보 점 강조
+                        refreshGUI();
+                        waitForKeyPress();
+
                         double d = source.distance(p);
                         pq.add(new Object[]{d, p});
                     }
                 } else {
+                    // 내부 노드: 자식 MBR 후보 강조
                     for (Node c : n.children) {
+                        highlightRect = c.mbr;      // 후보 MBR 강조
+                        refreshGUI();
+                        waitForKeyPress();
+
                         double d = minDist(source, c.mbr);
                         pq.add(new Object[]{d, c});
                     }
                 }
+
             } else if (obj instanceof Point p) {
+                // 확정된 KNN 결과 점
                 result.add(p);
-                highlightPoints.add(p);
+                highlightPoints.add(p);   // 결과는 누적
                 refreshGUI();
-                waitForKeyPress();  // 시각화용
+                waitForKeyPress();
             }
         }
 
-        // 시각화 초기화
+        // KNN 종료 후 시각화 초기화
         highlightPoints.clear();
+        highlightRect = null;
         DrawPanel.knnSource = null;
         currentMode = Mode.NONE;
 
         return result.iterator();
     }
+
 
     // 기준점 source와 MBR r 사이 최소 거리 계산
     private double minDist(Point source, Rectangle r) {
