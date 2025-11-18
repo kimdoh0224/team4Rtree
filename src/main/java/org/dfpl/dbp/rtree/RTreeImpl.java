@@ -248,7 +248,7 @@ public class RTreeImpl implements RTree {
                 int w = (int)((searchArea.getRightBottom().getX() - searchArea.getLeftTop().getX()) * SCALE);
                 int h = (int)((searchArea.getRightBottom().getY() - searchArea.getLeftTop().getY()) * SCALE);
 
-                // 🔥 테두리만 강조 (굵게)
+                // 테두리만 강조 (굵게)
                 Graphics2D g3 = (Graphics2D) g;
                 g3.setStroke(new BasicStroke(3.0f));    // 테두리 굵기
                 g3.setColor(Color.GREEN.darker());      // 테두리 색
@@ -280,7 +280,10 @@ public class RTreeImpl implements RTree {
         // 현재 노드의 점 또는 자식들의 MBR를 바탕으로 자신의 MBR을 재계산
         void updateMBR() {
             if (isLeaf) {
-                if (points.isEmpty()) return; // 비어 있으면 유지
+                if (points.isEmpty()) {
+                    mbr = null;
+                    return;
+                }
                 double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
                 double maxX = -1, maxY = -1;
                 for (Point p : points) {
@@ -291,10 +294,14 @@ public class RTreeImpl implements RTree {
                 }
                 mbr = new Rectangle(new Point(minX, minY), new Point(maxX, maxY));
             } else {
-                if (children.isEmpty()) return;
+                if (children.isEmpty()) {
+                    mbr = null;
+                    return;
+                }
                 double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
                 double maxX = -1, maxY = -1;
                 for (Node c : children) {
+                    if (c.mbr == null) continue;
                     Rectangle r = c.mbr;
                     minX = Math.min(minX, r.getLeftTop().getX());
                     minY = Math.min(minY, r.getLeftTop().getY());
@@ -304,16 +311,12 @@ public class RTreeImpl implements RTree {
                 mbr = new Rectangle(new Point(minX, minY), new Point(maxX, maxY));
             }
         }
-        // 현재 트리의 모든 MBR 출력
         public static void printAllMBRs() {
             System.out.println("==== 현재 트리의 모든 MBR ====");
 
-            // root 기준으로 직접 수집
             allMBR.clear();
             rectToId.clear();
 
-            // root는 static 아니므로 전역 접근 필요
-            // 이때 외부에서 RTreeImpl.root를 접근할 수 없으니, static이 아니라면 helper로
             if (instanceRoot != null) collectMBRsStatic(instanceRoot, allMBR);
 
             if (allMBR.isEmpty()) {
@@ -321,16 +324,44 @@ public class RTreeImpl implements RTree {
             } else {
                 for (Rectangle r : allMBR) {
                     int id = rectToId.getOrDefault(r, -1);
-                    System.out.printf("Node %d -> MBR[(%.1f, %.1f) ~ (%.1f, %.1f)]%n",
-                            id,
+
+                    // 해당 Node 객체를 찾아야 parent, leaf 여부 출력 가능
+                    Node target = findNodeById(instanceRoot, id);
+
+                    String type;
+                    if (target == instanceRoot) type = "ROOT";
+                    else if (target.isLeaf) type = "LEAF";
+                    else type = "INTERNAL";
+
+                    int parentId = (target.parent == null ? -1 : target.parent.id);
+
+                    System.out.printf(
+                            "Node %d [%s] -> MBR[(%.1f, %.1f) ~ (%.1f, %.1f)]%n",
+                            id, type,
                             r.getLeftTop().getX(), r.getLeftTop().getY(),
-                            r.getRightBottom().getX(), r.getRightBottom().getY());
+                            r.getRightBottom().getX(), r.getRightBottom().getY()
+                    );
+                    System.out.printf("   └ parent = %s%n", parentId == -1 ? "null" : parentId);
                 }
             }
+
             System.out.println("=============================");
         }
-
     }
+
+    private static Node findNodeById(Node n, int id) {
+        if (n == null) return null;
+        if (n.id == id) return n;
+
+        if (!n.isLeaf) {
+            for (Node c : n.children) {
+                Node found = findNodeById(c, id);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
 
     // 초기 루트를 리프로 시작하는 R-Tree 생성
     public RTreeImpl() {
@@ -599,20 +630,20 @@ public class RTreeImpl implements RTree {
     private void searchRecursive(Node n, Rectangle r, List<Point> out) {
         if (n == null) return;
 
-        // 🔥 리프 노드인 경우 - 점 검사
+        // 리프 노드 - 점 검사
         if (n.isLeaf) {
             for (Point p : n.points) {
                 if (contains(r, p)) {
                     highlightPoints.add(p);
                     refreshGUI();
                     out.add(p);
-                    waitForKeyPress();     // 🔥 여기가 정상 호출됨
+                    waitForKeyPress();
                 }
             }
             return;
         }
 
-        // 🔥 내부 노드: 자식들 검사
+        // 내부 노드 - 자식들 검사
         for (Node c : n.children) {
 
             if (intersects(c.mbr, r)) {
@@ -626,10 +657,10 @@ public class RTreeImpl implements RTree {
             }
 
             refreshGUI();
-            waitForKeyPress();            // 🔥 여기서 한 단계씩 멈춰 보여줌
+            waitForKeyPress();            // 엔터 대기
 
             if (intersects(c.mbr, r)) {
-                // 🔥 교차된 경우에만 재귀 진입
+                // 교차된 경우에만 재귀 진입
                 searchRecursive(c, r, out);
             }
         }
@@ -721,6 +752,9 @@ public class RTreeImpl implements RTree {
 
         instanceRoot = root;
 
+        // 삭제 완료 후 반드시 초기화
+        highlightRect = null;
+        highlightPoints.clear();
         refreshGUI();
         currentMode = Mode.NONE;
     }
@@ -742,42 +776,54 @@ public class RTreeImpl implements RTree {
         try { Thread.sleep(150); } catch (InterruptedException ignored) {}
 
         if (n.isLeaf) {
-            // 리프에서 직접 점을 찾아 제거
             Iterator<Point> it = n.points.iterator();
+
             while (it.hasNext()) {
                 Point q = it.next();
                 if (q.getX() == p.getX() && q.getY() == p.getY()) {
-                    // 삭제 대상 점을 잠깐 크게 빨간 점으로 강조
+
+                    // 삭제 대상 점 강조
                     highlightPoints.clear();
                     highlightPoints.add(q);
                     refreshGUI();
+                    try { Thread.sleep(120); } catch (InterruptedException ignored) {}
 
-                    // 실제 제거 + MBR 갱신
+                    // 강조 즉시 제거
+                    highlightPoints.clear();
+                    refreshGUI();
+
+                    // 실제 삭제
                     it.remove();
                     n.updateMBR();
                     refreshGUI();
-                    try { Thread.sleep(50); } catch (InterruptedException ignored) {}
                     return true;
                 }
             }
             return false;
-        } else {
-            // 내부노드: p가 포함될 수 있는 자식만 탐색
-            for (Node c : n.children) {
-                if (contains(c.mbr, p)) {
-                    if (deleteRecursive(c, p)) {
-                        // 자식이 비었으면 제거
-                        if ((c.isLeaf && c.points.isEmpty()) || (!c.isLeaf && c.children.isEmpty())) {
-                            highlightRect = c.mbr; // 제거 직전 자식 강조
-                            refreshGUI();
-                            try { Thread.sleep(150); } catch (InterruptedException ignored) {}
-                            n.children.remove(c);
-                        }
-                        // 현재 노드의 MBR 축소 반영
-                        n.updateMBR();
+        } for (Node c : n.children) {
+            if (contains(c.mbr, p)) {
+
+                if (deleteRecursive(c, p)) {
+
+                    // 자식이 비었으면 제거
+                    if ((c.isLeaf && c.points.isEmpty()) ||
+                            (!c.isLeaf && c.children.isEmpty())) {
+
+                        highlightRect = c.mbr;
                         refreshGUI();
-                        return true;
+                        try { Thread.sleep(150); } catch (InterruptedException ignored) {}
+
+                        // 강조 즉시 제거
+                        highlightRect = null;
+                        refreshGUI();
+
+                        n.children.remove(c);
                     }
+
+                    // 현재 노드 MBR 축소
+                    n.updateMBR();
+                    refreshGUI();
+                    return true;
                 }
             }
         }
