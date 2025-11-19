@@ -239,7 +239,7 @@ public class RTreeImpl implements RTree {
                 g2.setStroke(new BasicStroke(1.5f));
             }
 
-            // Task2: 탐색 모드일 때 (0,0,100,100) 영역을 항상 연녹색으로 표시
+            // Task2: 탐색 모드일 때 (0,0,100,100) 영역을 항상 노란색으로 표시
             if (currentMode == Mode.SEARCH) {
                 Rectangle searchArea = new Rectangle(new Point(0, 0), new Point(100, 100));
 
@@ -251,7 +251,7 @@ public class RTreeImpl implements RTree {
                 // 테두리만 강조 (굵게)
                 Graphics2D g3 = (Graphics2D) g;
                 g3.setStroke(new BasicStroke(3.0f));    // 테두리 굵기
-                g3.setColor(Color.GREEN.darker());      // 테두리 색
+                g3.setColor(Color.YELLOW);      // 테두리 색
                 g3.drawRect(x, y, w, h);
 
                 // 끝나면 기본 굵기로 되돌리기
@@ -603,7 +603,6 @@ public class RTreeImpl implements RTree {
         currentMode = Mode.SEARCH;
 
         List<Point> result = new ArrayList<>();
-        highlightRect = rectangle;   // 검색 영역 강조
         highlightPoints.clear();     // 기존 강조점 초기화
 
         // 실제 검색(DFS)
