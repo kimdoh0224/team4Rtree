@@ -19,6 +19,8 @@ public class Assignment45 {
         // 요건: point가 추가될 때마다 Java Swing 혹은 Java Fx 등의 GUI에 추가된 점과 함께
         // 점에 의해 변형된 계층적 Bounding Box들이 표시되어야 함
         RTree rTree = new RTreeImpl();
+        try { Thread.sleep(500); } catch (Exception ignored) {}
+
         for (Point point : pointList) {
             rTree.add(point);
         }

@@ -67,10 +67,10 @@ public class RTreeImpl implements RTree {
     private static int NODE_COUNTER = 0; // 전역 고유 번호 카운터
 
     // 기능별 시각화 지연 변수
-    private static final int DELAY_ADD = 10;     // 포인트 추가:
-    private static final int DELAY_SEARCH = 10;  // 탐색:
-    private static final int DELAY_KNN = 10;     // KNN:
-    private static final int DELAY_DELETE = 10; // 삭제:
+    private static final int DELAY_ADD = 100;     // 포인트 추가:
+    private static final int DELAY_SEARCH = 100;  // 탐색:
+    private static final int DELAY_KNN = 100;     // KNN:
+    private static final int DELAY_DELETE = 100; // 삭제:
 
     private static final int M = 4; // 최대 차수
     private Node root;
@@ -105,23 +105,21 @@ public class RTreeImpl implements RTree {
         if (panel == null) return;
 
         try {
-            // Swing EDT에서 상태 수집 및 리페인트를 동기적으로 실행
             SwingUtilities.invokeAndWait(() -> {
                 allMBR.clear();
                 collectMBRs(root, allMBR);
 
                 if (highlightRect != null)
-                    allMBR.add(highlightRect); // 현재 수정 중 노드만 추가 강조
+                    allMBR.add(highlightRect);
 
                 allPoints.clear();
                 collectPoints(root, allPoints);
 
                 panel.repaint();
-                try { Thread.sleep(50); } catch (InterruptedException ignored) {}
             });
         } catch (Exception ignored) {}
 
-        // 모드별 딜레이: 장면 사이 간격을 둬 시뮬레이션처럼 보이게 함
+        // 스레드는 EDT 밖에서 Sleep 해야 한다 (GUI 멈춤 방지!)
         int delay = switch (currentMode) {
             case ADD -> DELAY_ADD;
             case SEARCH -> DELAY_SEARCH;
@@ -481,7 +479,7 @@ public class RTreeImpl implements RTree {
         Node.printAllMBRs();
 
         // Enter 대기
-        waitForKeyPress();
+        // waitForKeyPress();
     }
 
     /**
@@ -643,7 +641,7 @@ public class RTreeImpl implements RTree {
                     highlightPoints.add(p);
                     refreshGUI();
                     out.add(p);
-                    waitForKeyPress();
+                    // waitForKeyPress();
                 }
             }
             return;
@@ -663,7 +661,7 @@ public class RTreeImpl implements RTree {
             }
 
             refreshGUI();
-            waitForKeyPress();            // 엔터 대기
+            // waitForKeyPress();            // 엔터 대기
 
             if (intersects(c.mbr, r)) {
                 // 교차된 경우에만 재귀 진입
@@ -693,7 +691,7 @@ public class RTreeImpl implements RTree {
         // 시각화: 시작 루트 강조
         highlightRect = root.mbr;
         refreshGUI();
-        waitForKeyPress();
+        // waitForKeyPress();
 
         while (!pq.isEmpty() && result.size() < k) {
             Object[] item = pq.poll();
@@ -704,7 +702,7 @@ public class RTreeImpl implements RTree {
                 // 현재 노드 MBR 강조
                 highlightRect = n.mbr;
                 refreshGUI();
-                waitForKeyPress();
+                // waitForKeyPress();
 
                 if (n.isLeaf) {
                     // 리프 노드: 후보 점 강조
@@ -712,7 +710,7 @@ public class RTreeImpl implements RTree {
                         highlightPoints.clear();
                         highlightPoints.add(p);      // 후보 점 강조
                         refreshGUI();
-                        waitForKeyPress();
+                        //waitForKeyPress();
 
                         double d = source.distance(p);
                         pq.add(new Object[]{d, p});
@@ -722,7 +720,7 @@ public class RTreeImpl implements RTree {
                     for (Node c : n.children) {
                         highlightRect = c.mbr;      // 후보 MBR 강조
                         refreshGUI();
-                        waitForKeyPress();
+                        // waitForKeyPress();
 
                         double d = minDist(source, c.mbr);
                         pq.add(new Object[]{d, c});
@@ -734,7 +732,7 @@ public class RTreeImpl implements RTree {
                 result.add(p);
                 highlightPoints.add(p);   // 결과는 누적
                 refreshGUI();
-                waitForKeyPress();
+                // waitForKeyPress();
             }
         }
 
@@ -795,7 +793,7 @@ public class RTreeImpl implements RTree {
         Node.printAllMBRs();
         
         // Enter 대기
-        waitForKeyPress();
+        // waitForKeyPress();
     }
 
     /**
@@ -812,7 +810,6 @@ public class RTreeImpl implements RTree {
         // 현재 방문 노드의 MBR 강조
         highlightRect = n.mbr;
         refreshGUI();
-        try { Thread.sleep(150); } catch (InterruptedException ignored) {}
 
         if (n.isLeaf) {
             Iterator<Point> it = n.points.iterator();
@@ -825,8 +822,6 @@ public class RTreeImpl implements RTree {
                     highlightPoints.clear();
                     highlightPoints.add(q);
                     refreshGUI();
-                    try { Thread.sleep(120); } catch (InterruptedException ignored) {}
-
                     // 강조 즉시 제거
                     highlightPoints.clear();
                     refreshGUI();
@@ -850,7 +845,6 @@ public class RTreeImpl implements RTree {
 
                         highlightRect = c.mbr;
                         refreshGUI();
-                        try { Thread.sleep(150); } catch (InterruptedException ignored) {}
 
                         // 강조 즉시 제거
                         highlightRect = null;
