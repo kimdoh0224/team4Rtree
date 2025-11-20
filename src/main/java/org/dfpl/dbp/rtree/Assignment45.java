@@ -21,11 +21,6 @@ public class Assignment45 {
         RTree rTree = new RTreeImpl();
         for (Point point : pointList) {
             rTree.add(point);
-
-            /* debug */
-            System.out.println("{add : " + point+"}");
-            RTreeImpl.Node.printAllMBRs();
-            RTreeImpl.waitForKeyPress();
         }
 
         // Task234는 Task1이 성공하지 않으면 평가하지 않는다.
@@ -34,10 +29,6 @@ public class Assignment45 {
         // 요건: 탐색 박스 (0,0,100,100)을 보여주고 내부의 포인트가 드러나게 함 (부분 2.5점)
         // 요건: 검색 범위와 겹치지 않는 영역이 가지치기 되는 점을 부각할 수 있어야 함 (부분 2.5점)
         Iterator<Point> iterator = rTree.search(new Rectangle(new Point(0, 0), new Point(100, 100)));
-
-        /* debug */
-        System.out.println("<<Search Box>>");
-
         while (iterator.hasNext()) {
             Point next = iterator.next();
             System.out.println(next);
@@ -80,11 +71,6 @@ public class Assignment45 {
                 new Point(100, 65));
         for (Point point : pointToRemove) {
             rTree.delete(point);
-
-            /* debug */
-            System.out.println("[delete : " + point + "]");
-            RTreeImpl.waitForKeyPress();
-            RTreeImpl.Node.printAllMBRs();
         }
         System.out.println(rTree.isEmpty());
     }

@@ -67,10 +67,10 @@ public class RTreeImpl implements RTree {
     private static int NODE_COUNTER = 0; // 전역 고유 번호 카운터
 
     // 기능별 시각화 지연 변수
-    private static final int DELAY_ADD = 100;     // 포인트 추가: 빠르게
-    private static final int DELAY_SEARCH = 100;  // 탐색: 빠르게
-    private static final int DELAY_KNN = 100;     // KNN: 빠르게(원한다면 300 등으로 키워도 됨)
-    private static final int DELAY_DELETE = 100; // 삭제: 상대적으로 천천히
+    private static final int DELAY_ADD = 10;     // 포인트 추가:
+    private static final int DELAY_SEARCH = 10;  // 탐색:
+    private static final int DELAY_KNN = 10;     // KNN:
+    private static final int DELAY_DELETE = 10; // 삭제:
 
     private static final int M = 4; // 최대 차수
     private Node root;
@@ -475,6 +475,13 @@ public class RTreeImpl implements RTree {
         highlightPoints.clear();
 
         currentMode = Mode.NONE;
+
+        // 디버깅용
+        System.out.println("{add : " + point+"}");
+        Node.printAllMBRs();
+
+        // Enter 대기
+        waitForKeyPress();
     }
 
     /**
@@ -782,6 +789,13 @@ public class RTreeImpl implements RTree {
         highlightPoints.clear();
         refreshGUI();
         currentMode = Mode.NONE;
+
+        // debug용 출력
+        System.out.println("[delete : " + point + "]");
+        Node.printAllMBRs();
+        
+        // Enter 대기
+        waitForKeyPress();
     }
 
     /**
